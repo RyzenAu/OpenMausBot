@@ -1707,7 +1707,8 @@ describe("harness HTTP API", () => {
 
     try {
       const result = await new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error("competing server did not exit")), 5_000);
+        // Windows 11 has no wmic, so the lease allows PowerShell 15s to read the owner's start time before it exits.
+        const timer = setTimeout(() => reject(new Error("competing server did not exit")), 45_000);
         timer.unref?.();
         contender.once("close", (code, signal) => {
           clearTimeout(timer);

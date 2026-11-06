@@ -521,6 +521,7 @@ export function createConfigRoutes(deps: ConfigRouteDeps): RouteHandler {
           if (persisted.xai?.key !== undefined) persisted.xai.key = "";
           if (persisted.composio?.apiKey !== undefined) persisted.composio.apiKey = "";
           if (persisted.box?.token !== undefined) persisted.box.token = "";
+          if (persisted.instabox?.apiKey !== undefined) persisted.instabox.apiKey = "";
           if (persisted.opencodeGo?.apiKey !== undefined) persisted.opencodeGo.apiKey = "";
           if (persisted.tts?.key !== undefined) persisted.tts.key = "";
           if (persisted.tts?.fishKey !== undefined) persisted.tts.fishKey = "";

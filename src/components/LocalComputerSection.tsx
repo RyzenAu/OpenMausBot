@@ -20,7 +20,7 @@ import { MacLocalControl } from "./MacLocalControl";
 import { Select } from "./Select";
 import { cn } from "@/lib/cn";
 import { useStore } from "@/state/store";
-import { VpsComputersCard } from "./VpsComputersCard"; import { KeysLink } from "./keys/KeysLink";
+import { VpsComputersCard } from "./VpsComputersCard"; import { InstaboxComputersSection } from "./InstaboxComputersCard"; import { KeysLink } from "./keys/KeysLink";
 
 type Action = "pull" | "run" | "start" | "stop" | "remove" | "recreate";
 
@@ -1218,7 +1218,7 @@ export function LocalComputerSection() {
         onSleep={(instance) => void actOnCloudComputer("sleep", instance)}
         onDelete={(instance) => void actOnCloudComputer("delete", instance)}
       />
-
+      <InstaboxComputersSection />
       <VpsComputersCard
         instances={vpsInventory}
         configured={vpsConfigured}

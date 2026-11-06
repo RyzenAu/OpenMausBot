@@ -38,6 +38,7 @@ describe("resolveComputerPromptKind", () => {
     [{ kind: "vm", vmPrivate: true }, "vm-private"],
     [{ kind: "box", vmPrivate: false }, "box"],
     [{ kind: "vps", vmPrivate: false }, "vps"],
+    [{ kind: "instabox", vmPrivate: false }, "instabox"],
     [{ kind: "local", vmPrivate: false }, "local"],
     [{ kind: null, vmPrivate: true }, null],
   ] as const)("resolves %j to %s", (input, expected) => {
@@ -53,6 +54,7 @@ describe("computerPrompt", () => {
       "vm-shared": "shared, isolated Cua sandbox",
       box: "You control the assigned cloud computer",
       vps: "This is the user's own VPS",
+      instabox: "existing InstaBox machine",
       local: "act on the user's computer",
     };
     for (const [kind, distinct] of Object.entries(paragraphs)) {
@@ -207,7 +209,7 @@ describe("computerPrompt", () => {
     expect(computerPrompt("box")).toContain("You control the assigned cloud computer");
     expect(computerPrompt("vps")).toContain("self-hosted remote Linux computer");
     expect(computerPrompt("local")).toContain("act on the user's computer");
-    for (const kind of ["vm-private", "vm-shared", "box", "vps", "local"] as const) {
+    for (const kind of ["vm-private", "vm-shared", "box", "vps", "instabox", "local"] as const) {
       expect(computerPrompt(kind).endsWith(SIGN_IN_PROMPT)).toBe(true);
       expect(computerPrompt(kind).startsWith(" ")).toBe(true);
     }

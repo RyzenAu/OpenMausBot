@@ -16,6 +16,12 @@ export const CREDENTIAL_TARGETS = {
     placeholder: "Paste your Boat API key",
     helpUrl: "https://docs.boat.dev/api-keys",
   },
+  instaboxApiKey: {
+    label: "InstaBox API key",
+    description: "Connects bots to existing InstaBox machines. OpenMausBot does not create machines with it.",
+    placeholder: "Paste your InstaBox API key",
+    helpUrl: "https://instabox.sh/docs/api-keys",
+  },
   opencodeGoApiKey: {
     label: "OpenCode API key",
     description: "Used for OpenCode Zen and Go.",
@@ -120,6 +126,7 @@ export type DesktopCredentialSlot = Exclude<ConfigCredentialTargetId, (typeof PR
 export type CredentialConfig = {
   xai?: { key?: string };
   box?: { token?: string };
+  instabox?: { apiKey?: string };
   opencodeGo?: { apiKey?: string };
   tts?: { key?: string; fishKey?: string };
   imageGen?: { key?: string };
@@ -175,6 +182,8 @@ export function credentialConfigPatch(id: ConfigCredentialTargetId, value: strin
       return { xai: { key: value } };
     case "boxToken":
       return { box: { token: value } };
+    case "instaboxApiKey":
+      return { instabox: { apiKey: value } };
     case "opencodeGoApiKey":
       return { opencodeGo: { apiKey: value } };
     case "ttsKey":
@@ -213,6 +222,8 @@ export function credentialIsConfigured(config: CredentialConfig, id: CredentialT
       return Boolean(config.xai?.key);
     case "boxToken":
       return Boolean(config.box?.token);
+    case "instaboxApiKey":
+      return Boolean(config.instabox?.apiKey);
     case "opencodeGoApiKey":
       return Boolean(config.opencodeGo?.apiKey);
     case "ttsKey":

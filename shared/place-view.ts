@@ -11,7 +11,7 @@ export const PLACE_STATES = [
   "auto", "auto-team",
   "cc-cannot", "cc-tools-off", "cc-sign-in", "cc-new", "cc-starting", "cc-waking", "cc-on", "cc-asleep",
   "cc-no-hours", "cc-at-once", "cc-unavailable", "cc-ended", "cc-no-start", "cc-clearing", "cc-provider",
-  "cc-on-my-cloud", "cc-needs-key", "vps",
+  "cc-on-my-cloud", "cc-needs-key", "vps", "instabox",
   "browser", "browser-off", "browser-cannot",
   "local", "local-unavailable", "vm", "vm-cannot", "place-failed",
   "off",
@@ -83,8 +83,8 @@ export interface PlaceFacts {
   plan?: boolean;
   /** Where cloud computers come from here: the plan's, the person's own Boat key, or nowhere. */
   boat: "included" | "own-key" | "none";
-  /** The cloud computer's provider: Boat, or the person's own server. */
-  backend?: "box" | "vps";
+  /** The cloud computer's provider: Boat, a VPS, or an existing InstaBox machine. */
+  backend?: "box" | "vps" | "instabox";
   engine: {
     name: string;
     model?: string;
@@ -159,6 +159,8 @@ export const PLACE_EN = {
   "place.view.ccNeedsKey.line": "Bots here can get their own cloud desktops from Boat, a paid service.",
   "place.view.vps.short": "Your own machine",
   "place.view.vps.line": "Uses your own Linux machine, connected over SSH.",
+  "place.view.instabox.short": "InstaBox",
+  "place.view.instabox.line": "Uses the existing InstaBox machine assigned to {bot}.",
   "place.view.browser.short": "Web pages only",
   "place.view.browser.line": "Works in the built-in browser only: web pages, no desktop apps.",
   "place.view.browserOff.short": "Switched off",
@@ -255,6 +257,7 @@ const STATE: Record<PlaceState, { key: string; action: PlaceActionId | null }> =
   "cc-on-my-cloud": { key: "ccOnMyCloud", action: "open-my-cloud" },
   "cc-needs-key": { key: "ccNeedsKey", action: "add-boat-key" },
   vps: { key: "vps", action: null },
+  instabox: { key: "instabox", action: null },
   browser: { key: "browser", action: null },
   "browser-off": { key: "browserOff", action: "turn-on-browser" },
   "browser-cannot": { key: "browserCannot", action: "choose-model" },
@@ -322,6 +325,12 @@ export function placeState(facts: PlaceFacts): { state: PlaceState; params: Plac
     return facts.engine.computer ? { state: "vm", params: { bot } } : { state: "vm-cannot", params: { bot, model } };
   }
   // On the person's own server (VPS) or on Boat, one rule for both.
+  if (facts.backend === "instabox") {
+    if (!facts.engine.computer) return { state: "cc-cannot", params: { bot, model } };
+    if (!facts.toolsAllowComputer) return { state: "cc-tools-off", params: { bot } };
+    if (!facts.engine.signedIn) return { state: "cc-sign-in", params: { bot, engine: facts.engine.name } };
+    return { state: "instabox", params: { bot } };
+  }
   const vps = facts.backend === "vps";
   if (!facts.engine.computer) return { state: "cc-cannot", params: { bot, model } };
   if (!facts.toolsAllowComputer) return { state: "cc-tools-off", params: { bot } };

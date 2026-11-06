@@ -46,6 +46,8 @@ export interface ConfigStatus {
   composio: SavedKey & { mode?: "managed" | "self-hosted" | "unavailable" };
   /** `included`: cloud computers come with Cloud Pro, no key is saved. */
   box: SavedKey & { included?: boolean };
+  /** InstaBox API key: configured or not, never the key. */
+  instabox?: SavedKey;
   vps: { configured: boolean; sshAlias: string };
   rooms: { turnTimeoutMinutes: number };
   /** Per-call ceiling (minutes) for a bot's MCP tools. Absent from servers

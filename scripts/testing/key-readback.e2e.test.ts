@@ -104,7 +104,7 @@ it("saves every kind of credential, reads it back and shows it masked to its las
   setLocale("en");
   expect(saveds.map((entry) => entry.id)).toEqual([
     "openai", "anthropic", "xai", "openrouter", "mistral", "cerebras", "groq", "greenference", "meta", "deepseek", "opencodeGo", "openaiCompat",
-    "liveKey", "elevenlabs", "fishAudio", "box", "composio", "treg", "postiz", "jev", "openrouterHelper", "workersAi", "imageOpenai", "imageCustom",
+    "liveKey", "elevenlabs", "fishAudio", "box", "instabox", "composio", "treg", "postiz", "jev", "openrouterHelper", "workersAi", "imageOpenai", "imageCustom",
   ]);
   for (const storage of ["", "?secretStorage=external"]) {
     for (const entry of saveds) {

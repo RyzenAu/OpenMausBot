@@ -40,7 +40,7 @@ export interface KeyTarget {
 
 export type KeyId =
   | "openai" | "anthropic" | "xai" | "openrouter" | "mistral" | "cerebras" | "groq" | "greenference" | "meta" | "deepseek" | "opencodeGo" | "opencodeProviders"
-  | "lmStudio" | "openaiCompat" | "liveCalls" | "liveKey" | "elevenlabs" | "fishAudio" | "box" | "vps" | "onePassword" | "composio" | "treg" | "postiz"
+  | "lmStudio" | "openaiCompat" | "liveCalls" | "liveKey" | "elevenlabs" | "fishAudio" | "box" | "instabox" | "vps" | "onePassword" | "composio" | "treg" | "postiz"
   | "jev" | "openrouterHelper" | "workersAi" | "imageOpenai" | "imageCustom";
 
 export type KeyMark = { driverKind: string; preset?: ProviderIconPreset } | { icon: LucideIcon };
@@ -143,6 +143,11 @@ export const KEY_CATALOG: readonly KeyEntry[] = [
     target: { patch: (value) => ({ box: { token: value } }), slot: "boxToken", verifiedOnSave: true,
       saved: (config) => ({ ...flag(config.box?.included ? undefined : config.box), ...(config.box?.included ? { included: true } : {}) }),
       placeholder: "boat_…", href: "https://docs.boat.dev/api-keys", analytics: "boat", shape: /^(boat|box)_/, warningKey: "keys.boat.warning" } },
+  { id: "instabox", section: "computers", labelKey: "keys.instabox.label", purposeKey: "keys.purpose.instabox", name: "InstaBox", env: ["INSTABOX_API_KEY"],
+    words: ["instabox", "insta box", "machine", "desktop", "computer"], mark: { icon: Monitor }, kind: "key",
+    target: { patch: (value) => ({ instabox: { apiKey: value } }), slot: "instaboxApiKey", verifiedOnSave: true,
+      saved: (config) => flag(config.instabox),
+      placeholder: "…", placeholderKey: "keys.instabox.placeholder", href: "https://instabox.sh/docs/api-keys", analytics: "instabox", warningKey: "keys.instabox.warning" } },
   { id: "vps", section: "computers", labelKey: "keys.vps.label", purposeKey: "keys.purpose.vps", name: "VPS", env: [],
     words: ["vps", "ssh", "server", "self-hosted", "computer", "docker"], mark: { icon: Server }, kind: "panel",
     status: (config) => ({ configured: config.vps?.configured === true }) },

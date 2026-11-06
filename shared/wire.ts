@@ -52,8 +52,8 @@ export interface ModelSelection {
   variant?: string;
 }
 
-/** Which cloud computer backs computer: "cloud"; absent means Boat. */
-export type CloudBackend = "box" | "vps";
+/** Which cloud computer backs computer: "cloud"; absent means Boat. `instabox` is an existing InstaBox machine, never a Boat. */
+export type CloudBackend = "box" | "vps" | "instabox";
 
 /** A place a bot can act. `cloud` covers both cloud backends. */
 export type Surface = "cloud" | "vm" | "local" | "browser";
@@ -310,8 +310,8 @@ export interface WireBot extends DefaultBotFields, BotAccessFields {
   modelSelection: ModelSelection;
   /** where the bot works ("Works on"). Unset = auto. */
   computer?: Surface | "off";
-  /** Which cloud computer backs computer: "cloud"; absent means Boat. */
-  cloudBackend?: CloudBackend;
+  /** Which cloud computer backs computer: "cloud"; absent means Boat. `instaboxMachineId` is an existing InstaBox machine (`m_` and 26 characters). */
+  cloudBackend?: CloudBackend; instaboxMachineId?: string;
   /** Auto mode may prepare/start this bot's managed VPS container. */
   autoStartVps?: boolean;
   /** This bot's own SSH config alias for its managed VPS computer; absent

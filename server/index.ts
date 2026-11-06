@@ -88,7 +88,7 @@ import { createPersonStop } from "./host/person-stop.ts"; import type { DirectSe
 import { finishedWithoutSummaryLine, ROOM_SUMMARY_REASK, roomTurnNarrationIds, roomTurnReply } from "./room-reply.ts";
 import { pickComputer } from "./computer-selection.ts";
 import * as boat from "./boat.ts"; import { keyHint, keyStatus, nestedKeyStatus, withoutKeyHints } from "./key-hint.ts";
-import { cloudComputerRpc } from "./cloud-computer-tools.ts";
+import { cloudComputerRpc } from "./cloud-computer-tools.ts"; import { applyInstaboxSelection, claimInstaboxTurn, createInstaboxRoutes, instaboxClient, instaboxMcpAnswer, resolveTurnCloudBackend } from "./instabox-host.ts";
 import { chartRenderer, compileChart, dataEngine, validateVegaLite } from "./data/deps.ts";
 import { BUILT_IN_DATA_SYSTEM_PROMPT } from "./data/instructions.ts";
 import { DATA_INTERNAL_MCP_PATH, dataRpc } from "./data/rpc.ts";
@@ -1644,8 +1644,8 @@ type InternalCapability = {
   orphanExpiresAt: number;
   localVmTarget?: LocalVmTarget;
   teamComputerId?: string;
-  /** Set only by the harness at attach; null: mounted, and the first call creates or wakes the Boat. */
-  boxId?: string | null;
+  /** Set only by the harness at attach; null: mounted, and the first call creates or wakes the Boat. `instaboxMachineId` is an existing InstaBox machine, never a Boat id. */
+  boxId?: string | null; instaboxMachineId?: string;
   browserSession?: string;
   roomHandoffId?: string;
   attachedFiles?: number;
@@ -1913,12 +1913,12 @@ function clearFailedAutoPin(botId: string, threadId: string, place: Surface): vo
 }
 
 async function asPlaceFailure(
-  error: unknown, place: Surface, source: PlaceSource, bot: { id: string; name: string }, backend: "box" | "vps" = "box",
+  error: unknown, place: Surface, source: PlaceSource, bot: { id: string; name: string }, backend: "box" | "vps" | "instabox" = "box",
 ): Promise<unknown> {
   if (error instanceof DirectTurnSetupCancelled || error instanceof ComputerWaitParked || error instanceof PlaceUnavailableError) return error;
   const failure = error instanceof Error ? error : new Error(String(error));
   const cause = failure.message.trim().replace(/[\s.]+$/, "");
-  if (place !== "cloud" || backend === "vps") {
+  if (place !== "cloud" || backend === "vps" || backend === "instabox") {
     return placeUnavailable(place, {
       state: "place-failed", params: { bot: bot.name, cause: `${cause.charAt(0).toUpperCase()}${cause.slice(1)}.` }, source,
     }, Boolean(CLOUD_HOME));
@@ -2515,9 +2515,9 @@ function controlIntegration(
   botId: string,
   threadId: string,
   generation: string,
-  machine: "this computer" | { localVmTarget?: LocalVmTarget; boxId?: string | null } = {},
+  machine: "this computer" | { localVmTarget?: LocalVmTarget; boxId?: string | null; instaboxMachineId?: string } = {},
 ) {
-  const { localVmTarget, boxId } = machine === "this computer" ? {} : machine;
+  const { localVmTarget, boxId, instaboxMachineId } = machine === "this computer" ? {} : machine;
   return {
     url: `http://127.0.0.1:${PORT}/api/internal/computer-control?botId=${encodeURIComponent(botId)}`,
     token: mintInternalCapability({
@@ -2527,7 +2527,7 @@ function controlIntegration(
       depth: 0,
       kind: "computer",
       ...(localVmTarget ? { localVmTarget } : {}),
-      ...(boxId !== undefined ? { boxId } : {}),
+      ...(boxId !== undefined ? { boxId } : {}), ...(instaboxMachineId ? { instaboxMachineId } : {}),
       ...(teamComputerTurns.get(threadId) ? { teamComputerId: teamComputerTurns.get(threadId)!.computerId } : {}),
       skillAuthoring: false,
       createdBots: 0,
@@ -2595,7 +2595,7 @@ async function moveOffComputerEngine(): Promise<void> {
   const moves = store.retireInstances(removed, replacement, {
     driverKind: instance?.driverKind,
     canWorkOnCloud: canWorkOnCloud(cloudEngine(instance)),
-    keepCloud: (bot) => boat.boatConfigured(cfg) && bot.cloudBackend !== "vps" && !inheritedTeamComputer(bot),
+    keepCloud: (bot) => boat.boatConfigured(cfg) && bot.cloudBackend !== "vps" && bot.cloudBackend !== "instabox" && !inheritedTeamComputer(bot),
   });
   writeComputerEngineMoveLines(moves, (move) => {
     const bot = store.bot(move.botId);
@@ -2980,7 +2980,7 @@ function previewSystemPrompt(bot: BotRecord) {
   const previewComputer = teamComputer ? "cloud" : bot.computer;
   const computerPromptKind = resolveComputerPromptKind({
     kind: previewComputer === "vm" ? "vm" : previewComputer === "cloud"
-      ? bot.cloudBackend === "vps" ? "vps" : "box" : previewComputer === "local" ? "local" : null,
+      ? bot.cloudBackend === "vps" ? "vps" : bot.cloudBackend === "instabox" ? "instabox" : "box" : previewComputer === "local" ? "local" : null,
     vmPrivate: localVmMode(cfg) === "per-bot",
   });
   const peers = reachablePeers(store.bots, bot);
@@ -5880,8 +5880,8 @@ function cloudComputerMount(botId: string, owner: TurnOwner, boxId: string): Pic
   return { localComputer: cloudComputerTools(botId, owner, boxId) };
 }
 
-function cloudComputerTools(botId: string, owner: TurnOwner, boxId: string | null): NonNullable<SendTurnInput["integrations"]>["localComputer"] {
-  const control = controlIntegration(botId, owner.threadId, owner.generation, { boxId });
+function cloudComputerTools(botId: string, owner: TurnOwner, boxId: string | null, instaboxMachineId?: string): NonNullable<SendTurnInput["integrations"]>["localComputer"] {
+  const control = controlIntegration(botId, owner.threadId, owner.generation, { boxId, ...(instaboxMachineId ? { instaboxMachineId } : {}) });
   return {
     command: process.execPath,
     args: [SPAWNED_PROXIES.harnessMcp, "computer"],
@@ -6066,7 +6066,7 @@ function turnSurfacePlan(bot: BotRecord, runOn?: RoutineRunOn, threadId?: string
 }
 
 function turnProvider(bot: BotRecord, runOn?: RoutineRunOn, threadId?: string): RemoteComputerProvider | null {
-  if (runOn === "cloud" || inheritedTeamComputer(bot)) return "box";
+  if (bot.cloudBackend === "instabox") return null; if (runOn === "cloud" || inheritedTeamComputer(bot)) return "box";
   const wants = turnSurfacePlan(bot, runOn, threadId).computer;
   if (wants !== undefined && wants !== "cloud") return null;
   return bot.cloudBackend === "vps" ? "vps" : wants === "cloud" ? "box" : null;
@@ -6085,7 +6085,7 @@ async function computerPreviewSurface(bot: BotRecord, threadId?: string) {
   const plan = turnSurfacePlan(bot, undefined, threadId);
   if (plan.computer !== undefined) return plan.computer === "off" && plan.browser ? "browser" : plan.computer;
   const instance = registry.get(bot.modelSelection.instanceId);
-  if (bot.cloudBackend === "vps") {
+  if (bot.cloudBackend === "instabox") return "cloud"; if (bot.cloudBackend === "vps") {
     const remote = await vps.vpsComputerStatus(vpsConfigForBot(cfg, bot), bot.id);
     if (remote.ready || vpsDesktopOutdated(remote)) return "cloud";
   }
@@ -6118,8 +6118,7 @@ async function selectableComputers(bot: BotRecord) {
     try {
       if (off) reason = "Computer access is Off in this bot's settings.";
       else if (toolsLeaveOut && surface !== "browser") reason = toolsLeaveOut;
-      else if (surface === "cloud") {
-        if (bot.cloudBackend === "vps") {
+      else if (surface === "cloud") { const instaboxChoice = await applyInstaboxSelection(cfg, bot, reason); if (instaboxChoice.handled) { ready = instaboxChoice.ready; canStart = false; canCreate = false; reason = instaboxChoice.reason; } else if (bot.cloudBackend === "vps") {
           const status = canWorkOnCloud(cloudEngine(instance)) ? await vps.vpsComputerStatus(vpsConfigForBot(cfg, bot), bot.id) : null;
           ready = status?.ready === true;
           canStart = Boolean(status?.daemonUp && status.managed && status.container === "stopped" &&
@@ -6154,7 +6153,7 @@ async function selectableComputers(bot: BotRecord) {
         reason = "The built-in browser is disabled, not installed, or unsupported by this model.";
       }
     } catch (error) { reason = error instanceof Error ? error.message : String(error); }
-    const kind = surface === "local" ? "thisComputer" : surface === "vm" ? "localVm" : surface === "cloud" ? (bot.cloudBackend === "vps" ? "vps" : "box") : undefined;
+    const kind = surface === "local" ? "thisComputer" : surface === "vm" ? "localVm" : surface === "cloud" ? (bot.cloudBackend === "vps" ? "vps" : bot.cloudBackend === "instabox" ? undefined : "box") : undefined;
     const managed = kind && managedPolicy.computerRefusal(kind);
     if (managed) return { surface, label: surfaceLabel(surface), available: false, ready: false, canStart: false, canCreate: false, reason: managed };
     const available = ready || canStart || canCreate;
@@ -8066,7 +8065,7 @@ async function startTurn(
       const dwebUrl = process.env.DWEB_URL?.trim();
       if (dwebUrl) integrations.dweb = { url: dwebUrl };
       let teamComputer = computerSkipped || proactive.fence.confines(threadId) ? undefined : inheritedTeamComputer(bot);
-      const cloudBackend = teamComputer || opts?.runOn === "cloud" || bot.cloudBackend !== "vps" ? "box" : "vps";
+      const cloudBackend = resolveTurnCloudBackend(bot, Boolean(teamComputer), opts?.runOn);
       const mountsComputerMcp = instance.adapter.capabilities.computerMcp === true;
       const mountsLocalComputer = instance.adapter.capabilities.localComputerMcp === true;
       const dispatchTask = store.taskByThread(bot.id, threadId);
@@ -8080,7 +8079,7 @@ async function startTurn(
         releaseTurnComputer(resourceOwner);
       };
       const wantedKind = teamComputer ? "box" : wants === "local" ? "thisComputer" : wants === "vm" ? "localVm"
-        : wants === "cloud" ? (cloudBackend === "vps" ? "vps" : "box") : undefined;
+        : wants === "cloud" ? (cloudBackend === "vps" ? "vps" : cloudBackend === "instabox" ? undefined : "box") : undefined;
       const placeRefusal = wantedKind && computerPlaceRefusal(wantedKind);
       if (placeRefusal) skipComputer(Object.assign(new Error(placeRefusal.message), { status: 409, code: placeRefusal.code }));
       const namedPlace = teamComputer || wants === undefined || wants === "off" ? undefined : wants;
@@ -8095,7 +8094,7 @@ async function startTurn(
       }
       let previewCapture: (() => Promise<{ png: string; format: string }>) | null = null;
       let browserCapture: (() => Promise<{ png: string; format: string }>) | null = null;
-      let computerKind: "box" | "vps" | "vm" | "local" | null = null;
+      let computerKind: "box" | "vps" | "vm" | "local" | "instabox" | null = null;
       let autoVpsProblem: string | null = null;
       let autoVpsReachable: boolean | undefined, autoVpsOutdated = false, vmUpdateNote = "";
       /** A capture in flight after another thread owns the shared desktop would picture its work under this bot's name. */
@@ -8313,7 +8312,7 @@ async function startTurn(
             autoVpsReachable = mounted.reachable; autoVpsOutdated = "outdated" in mounted && mounted.outdated === true;
           }
         }
-
+        const instaboxKind = await claimInstaboxTurn({ cfg, bot, wants, cloudBackend, canUse: canWorkOnCloud(cloudEngine(instance)), bots: store.bots, liveBot: () => store.bot(bot.id), mount: (machineId) => { integrations.localComputer = cloudComputerTools(bot.id, resourceOwner, null, machineId); }, arm: (claim) => autoVmClaims.set(threadId, { owner: resourceOwner, lazy: true, label: "the InstaBox desktop", onRejected: surfaceLazyClaimRejection("the InstaBox desktop"), claim }), bind: (machineId) => bindTurnComputer(resourceOwner, `computer:instabox:${machineId}`, true), show: (machineId) => adoptClaimedCapture(() => instaboxClient(cfg).screenshot(machineId).then((shot) => ({ png: shot.png, format: "png" }))), pin: () => pinAutoSurface("cloud") }); if (instaboxKind) computerKind = instaboxKind;
         if (teamComputer) {
           const attached = await attachTeamBoat(teamComputer, bot.id, resourceOwner, canWorkOnCloud(cloudEngine(instance)));
           Object.assign(integrations, attached.mount);
@@ -8341,7 +8340,7 @@ async function startTurn(
       // Electron owns cua-driver and its TCC attribution; the harness only reads its running connection descriptor.
       if (wants === undefined && !integrations.localComputer && !computerPlaceRefusal("localVm") && await attachLocalVm(false)) computerKind = "vm";
       // An unattended run with a VPS configured never lands on the host's own desktop, nor does a bot whose own desktop awaits an update.
-      const hostBarred = (cloudBackend === "vps" && Boolean(opts?.automationSource)) || autoVpsOutdated || Boolean(vmUpdateNote);
+      const hostBarred = (cloudBackend === "vps" && Boolean(opts?.automationSource)) || cloudBackend === "instabox" || autoVpsOutdated || Boolean(vmUpdateNote);
       if (
         !integrations.localComputer &&
         wants === undefined &&
@@ -11884,7 +11883,7 @@ function configStatus() {
       ...(composio.connectionMode(cfg) === "self-hosted" ? keyHint(cfg.composio?.apiKey) : {}),
       configured: composio.configured(cfg), mode: composio.connectionMode(cfg),
     },
-    box: { ...boat.describeBoatAccount(cfg), ...(boat.boatAccount(cfg)?.included ? {} : keyHint(cfg.box?.token)) },
+    box: { ...boat.describeBoatAccount(cfg), ...(boat.boatAccount(cfg)?.included ? {} : keyHint(cfg.box?.token)) }, instabox: keyStatus(cfg.instabox?.apiKey),
     vps: { configured: Boolean(vpsSshAlias(cfg)), sshAlias: vpsSshAlias(cfg) ?? "" },
     opencodeGo: { ...keyStatus(cfg.opencodeGo?.apiKey), providerKeys: Object.keys(openCodeProviderKeys(cfg)) },
     tts: tts.describeVoice(cfg),
@@ -12538,7 +12537,7 @@ ROUTES.push(createMcpServerRoutes({
   connectionsChanged: (change) => void routineHolds?.connections(change) }));
 ROUTES.push(createSetupImportRoutes({ local: DESKTOP_MANAGED && !CLOUD_HOME && !HOSTED_WORKSPACE, cfg, mcpPolicyRefusal, persistMcpServers,
   mcpConfigBusy: { get: () => mcpConfigBusy, set: (busy) => { mcpConfigBusy = busy; } } }));
-ROUTES.push(createComputerRoutes({
+ROUTES.push(createInstaboxRoutes({ store, cfg: () => cfg }), createComputerRoutes({
   store, cfg, sessions, teamComputers, computerControl,
   routines: () => routines,
   controlLeaseIdSchema, boatLifecycleBusyBots, computerProviderConfigTransitions, localVmActiveThreads,
@@ -13300,7 +13299,7 @@ const handleRequest = async (req: IncomingMessage, res: ServerResponse) => {
       }
       // The turn's capability names its Boat; the Boat credential stays here.
       if (await dispatchRoutes([savedSteps.journalRoutes({ capability: internalCapability, readBody: readInternalBody })], { req, res, url, path, method, auth, json, readBody })) return; if (method === "POST" && path === "/api/internal/computer/mcp") {
-        const body = await readInternalBody();
+        const body = await readInternalBody(); const instaboxAnswer = await instaboxMcpAnswer(body, { machineId: internalCapability.instaboxMachineId, botId: internalCapability.botId, bots: store.bots, cfg, assertActive: requireActiveInternalCapability }); if (instaboxAnswer) return json(res, instaboxAnswer.status, instaboxAnswer.body);
         if (internalCapability.boxId === undefined) return json(res, 403, { error: "this turn has no cloud computer" });
         const abort = new AbortController();
         res.once("close", () => { if (!res.writableEnded) abort.abort(); });

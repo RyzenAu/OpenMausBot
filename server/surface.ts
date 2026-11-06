@@ -31,8 +31,8 @@ export function parseSurface(value: unknown): Surface | undefined {
   return typeof value === "string" && SURFACES.has(value) ? (value as Surface) : undefined;
 }
 
-export function surfaceOfComputerKind(kind: "box" | "vps" | "vm" | "local" | null): Surface | null {
-  if (kind === "box" || kind === "vps") return "cloud";
+export function surfaceOfComputerKind(kind: "box" | "vps" | "vm" | "local" | "instabox" | null): Surface | null {
+  if (kind === "box" || kind === "vps" || kind === "instabox") return "cloud";
   return kind;
 }
 
