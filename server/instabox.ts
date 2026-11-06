@@ -15,6 +15,19 @@ export function isInstaboxMachineId(value: unknown): value is string {
   return typeof value === "string" && INSTABOX_MACHINE_ID.test(value);
 }
 
+export function scrubInstaboxBot(bot: { cloudBackend?: string; instaboxMachineId?: string }): boolean {
+  let changed = false;
+  if (bot.cloudBackend !== undefined && bot.cloudBackend !== "box" && bot.cloudBackend !== "vps" && bot.cloudBackend !== "instabox") {
+    delete bot.cloudBackend;
+    changed = true;
+  }
+  if (bot.instaboxMachineId !== undefined && !isInstaboxMachineId(bot.instaboxMachineId)) {
+    delete bot.instaboxMachineId;
+    changed = true;
+  }
+  return changed;
+}
+
 /** Last-ditch scrub. Callers must not log the key; this only cleans an error that echoed it. */
 export function scrubInstaboxSecret(text: string, secret: string | undefined): string {
   const key = secret?.trim() ?? "";

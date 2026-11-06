@@ -12,6 +12,7 @@ import { removeBotFolder, soulFile, soulHash, writeSoulMirror } from "./bot-fold
 import type { BotProfilePatch } from "./bot-profile.ts";
 import { peerAllowKey, type PeerAction } from "./peer-approval-key.ts";
 import { DATA_DIR, EVENTS_DIR, NATIVE_DIR, loadBrowserProfileIdAliases } from "./config.ts";
+import { scrubInstaboxBot } from "./instabox.ts";
 import * as mdb from "./message-db.ts";
 import { forgetBotMemoryJournal, journalFile } from "./memory-journal.ts";
 import { runCommand, type Command } from "./commands.ts";
@@ -372,14 +373,7 @@ export class Store {
           botsMigrated = true;
         }
       }
-      if (b.cloudBackend !== undefined && b.cloudBackend !== "box" && b.cloudBackend !== "vps" && b.cloudBackend !== "instabox") {
-        delete b.cloudBackend;
-        botsMigrated = true;
-      }
-      if (b.instaboxMachineId !== undefined && !/^m_[a-z0-9]{26}$/.test(b.instaboxMachineId)) {
-        delete b.instaboxMachineId;
-        botsMigrated = true;
-      }
+      if (scrubInstaboxBot(b)) botsMigrated = true;
       if (b.autoStartVps !== undefined && b.autoStartVps !== true && b.autoStartVps !== false) {
         delete b.autoStartVps;
         botsMigrated = true;

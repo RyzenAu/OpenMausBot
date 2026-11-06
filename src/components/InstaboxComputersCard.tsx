@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { api } from "@/state/api";
 import { useStore } from "@/state/store";
 import { Card } from "./SettingsPrimitives";
+import { Select } from "./Select";
 
 export interface InstaboxMachineRow {
   id: string;
@@ -82,16 +83,18 @@ export function InstaboxComputersCard({
                 {machine.shared ? t("instabox.shared") : machine.assignedBotName ? t("instabox.assigned", { name: machine.assignedBotName }) : t("instabox.unassigned")}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <label className="sr-only" htmlFor={`instabox-bot-${machine.id}`}>{t("instabox.chooseBot")}</label>
-                <select
+                <Select
                   id={`instabox-bot-${machine.id}`}
-                  className="rounded-lg border border-hairline/40 bg-panel px-2 py-1.5 text-[12px] text-ink"
+                  aria-label={t("instabox.chooseBot")}
+                  variant="field"
+                  size="sm"
+                  className="min-w-0"
                   value={selected}
                   onChange={(event) => setChoice((current) => ({ ...current, [machine.id]: event.target.value }))}
                 >
                   <option value="">{t("instabox.unassigned")}</option>
                   {bots.map((bot) => <option key={bot.id} value={bot.id}>{bot.name}</option>)}
-                </select>
+                </Select>
                 <button
                   type="button"
                   disabled={busy || !selected || selected === machine.assignedBotId}

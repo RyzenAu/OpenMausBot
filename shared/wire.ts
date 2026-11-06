@@ -310,10 +310,8 @@ export interface WireBot extends DefaultBotFields, BotAccessFields {
   modelSelection: ModelSelection;
   /** where the bot works ("Works on"). Unset = auto. */
   computer?: Surface | "off";
-  /** Which cloud computer backs computer: "cloud"; absent means Boat. */
-  cloudBackend?: CloudBackend;
-  /** Existing InstaBox machine this bot drives (`m_` and 26 characters). OpenMausBot does not create it. */
-  instaboxMachineId?: string;
+  /** Which cloud computer backs computer: "cloud"; absent means Boat. `instaboxMachineId` is an existing InstaBox machine (`m_` and 26 characters). */
+  cloudBackend?: CloudBackend; instaboxMachineId?: string;
   /** Auto mode may prepare/start this bot's managed VPS container. */
   autoStartVps?: boolean;
   /** This bot's own SSH config alias for its managed VPS computer; absent
