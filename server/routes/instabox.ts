@@ -5,6 +5,7 @@ import {
   instaboxBotStatus,
   instaboxClient,
   instaboxComputerActionError,
+  instaboxOwner,
   isInstaboxMachineId,
   planInstaboxAssignment,
   scrubInstaboxSecret,
@@ -30,16 +31,22 @@ function assignmentBots(bots: readonly BotRecord[]) {
 }
 
 function publicMachine(machine: InstaboxMachine, bots: readonly BotRecord[]) {
-  const owner = bots.find((bot) => bot.instaboxMachineId === machine.id);
+  const owners = bots.filter((bot) => bot.instaboxMachineId === machine.id);
+  const owner = owners.length === 1 ? owners[0] : undefined;
   return {
     id: machine.id,
     name: machine.name,
     state: machine.state,
-    ready: machine.ready,
+    ready: machine.ready && owners.length <= 1,
     templateId: machine.templateId,
     assignedBotId: owner?.id ?? null,
     assignedBotName: owner?.name ?? null,
+    shared: owners.length > 1,
   };
+}
+
+function ownedBy(deps: InstaboxRouteDeps, botId: string, machineId: string): string | null {
+  return instaboxOwner(assignmentBots(deps.store.bots), machineId, botId);
 }
 
 export function createInstaboxRoutes(deps: InstaboxRouteDeps): RouteHandler {
@@ -61,6 +68,8 @@ export function createInstaboxRoutes(deps: InstaboxRouteDeps): RouteHandler {
         if (!instaboxApiKey(deps.cfg()) || !isInstaboxMachineId(bot.instaboxMachineId)) {
           return json(res, 409, { error: !instaboxApiKey(deps.cfg()) ? "InstaBox is not connected. Add an API key in Settings → API keys." : "No InstaBox machine is assigned to this bot." });
         }
+        const isolation = ownedBy(deps, bot.id, bot.instaboxMachineId);
+        if (isolation) return json(res, 409, { error: isolation });
         try {
           const shot = await clientFor().screenshot(bot.instaboxMachineId);
           return json(res, 200, { png: shot.png, format: "png" });
@@ -95,6 +104,8 @@ export function createInstaboxRoutes(deps: InstaboxRouteDeps): RouteHandler {
           const bot = deps.store.bot(botId);
           if (!bot) return json(res, 404, { error: "no such bot" });
           if (!isInstaboxMachineId(bot.instaboxMachineId)) return json(res, 409, { error: "No InstaBox machine is assigned to this bot." });
+          const isolation = ownedBy(deps, bot.id, bot.instaboxMachineId);
+          if (isolation) return json(res, 409, { error: isolation });
           if (bot.busy) return json(res, 409, { error: "stop the active turn before reconnecting this bot's InstaBox machine" });
           const machine = await clientFor().reconnect(bot.instaboxMachineId);
           return json(res, 200, { machine: publicMachine(machine, deps.store.bots) });

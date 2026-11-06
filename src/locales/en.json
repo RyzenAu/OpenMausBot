@@ -6405,6 +6405,7 @@
   "instabox.checking": "Checking InstaBox machines",
   "instabox.none": "No machines in this account yet. Create one in InstaBox, then refresh. OpenMausBot will not create one for you.",
   "instabox.unassigned": "Not assigned",
+  "instabox.shared": "More than one bot is assigned to this machine. Clear the extra assignment before using it.",
   "instabox.assigned": "Assigned to {name}",
   "instabox.assign": "Assign",
   "instabox.clear": "Clear",

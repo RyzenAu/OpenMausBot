@@ -65,15 +65,45 @@ export interface InstaboxClientOptions {
   now?: () => number;
 }
 
-/** Methods the adapter will not send. Creating a machine is POST /v1/machines with no further path. */
+const MACHINE_PATH = /^\/v1\/machines\/m_[a-z0-9]{26}$/;
+const MACHINE_WRITE = /^\/v1\/machines\/m_[a-z0-9]{26}\/(?:exec|desktop|resume|start)$/;
+const SCREENSHOT_QUERY = /^\/v1\/machines\/m_[a-z0-9]{26}\/files\/content$/;
+
+/** Only the calls this adapter makes. POST /v1/machines (create) is refused, as are stop, delete, fork, and resize. */
 export function instaboxRequestAllowed(method: string, path: string): boolean {
   const verb = method.toUpperCase();
-  if (verb !== "GET" && verb !== "POST") return false;
-  if (!path.startsWith("/v1/")) return false;
-  if (verb === "POST" && (path === "/v1/machines" || path.endsWith("/fork") || path.includes("/snapshots") || path.endsWith("/desktop/stream"))) {
-    return false;
+  const [pathname, query, extra] = path.split("?");
+  if (extra !== undefined || pathname === undefined) return false;
+  if (verb === "POST" && pathname === "/v1/machines") return false;
+  if (verb === "GET" && pathname === "/v1/machines") {
+    if (!query) return false;
+    const params = new URLSearchParams(query);
+    const names = [...params.keys()];
+    return names.length > 0 && names.every((name) => name === "limit" || name === "cursor") && params.get("limit") === "100";
   }
-  return true;
+  if (verb === "GET" && MACHINE_PATH.test(pathname)) return query === undefined;
+  if (verb === "GET" && SCREENSHOT_QUERY.test(pathname)) {
+    const params = new URLSearchParams(query ?? "");
+    const file = params.get("path");
+    return file !== null && SCREENSHOT_PATH.test(file) && [...params.keys()].every((name) => name === "path");
+  }
+  return verb === "POST" && query === undefined && MACHINE_WRITE.test(pathname);
+}
+
+function pixel(name: string, value: number): number {
+  if (!Number.isInteger(value) || value < 0 || value > 32767) {
+    throw new InstaboxError(`${name} must be a whole number of pixels from 0 to 32767.`, 400, "bad_request");
+  }
+  return value;
+}
+
+/** Desktop commands are fixed templates. A model shell uses shell(), which is one JSON cmd on the assigned machine. */
+function assertDesktopCommand(command: string): void {
+  const pixel = "(?:0|[1-9]\\d{0,4})";
+  const allowed = new RegExp(
+    `^(?:xdotool getdisplaygeometry|xdotool mousemove ${pixel} ${pixel}(?: click --repeat [1-3] --delay 80 [1-3]| click --repeat (?:[1-9]|[12]\\d|30) --delay 30 [4-7]| mousedown 1 sleep 0\\.1 mousemove ${pixel} ${pixel} sleep 0\\.1 mouseup 1)|xdotool type --delay 12 --file -|xdotool key --clearmodifiers '(?:[A-Za-z0-9_+]{1,100})'|nohup xdg-open 'https?:\\/\\/[^'\\s]{1,2000}' >/dev/null 2>&1 </dev/null &)$`,
+  );
+  if (!allowed.test(command)) throw new InstaboxError("That desktop command is not allowed.", 400, "bad_request");
 }
 
 function shellQuote(value: string): string {
@@ -316,6 +346,7 @@ export function createInstaboxClient(options: InstaboxClientOptions) {
       });
     },
     async desktopCommand(id: string, command: string, stdin?: string): Promise<InstaboxExecResult> {
+      assertDesktopCommand(command);
       return withLane(id, async () => {
         const machine = await getMachine(id);
         if (machine.state !== "running") {
@@ -326,16 +357,20 @@ export function createInstaboxClient(options: InstaboxClientOptions) {
       });
     },
     click(id: string, x: number, y: number, button = 1, repeat = 1) {
-      return this.desktopCommand(id, `xdotool mousemove ${x} ${y} click --repeat ${repeat} --delay 80 ${button}`);
+      if (!Number.isInteger(button) || button < 1 || button > 3) throw new InstaboxError("That mouse button is not allowed.", 400, "bad_request");
+      if (!Number.isInteger(repeat) || repeat < 1 || repeat > 3) throw new InstaboxError("That click count is not allowed.", 400, "bad_request");
+      return this.desktopCommand(id, `xdotool mousemove ${pixel("x", x)} ${pixel("y", y)} click --repeat ${repeat} --delay 80 ${button}`);
     },
     move(id: string, x: number, y: number) {
-      return this.desktopCommand(id, `xdotool mousemove ${x} ${y}`);
+      return this.desktopCommand(id, `xdotool mousemove ${pixel("x", x)} ${pixel("y", y)}`);
     },
     drag(id: string, x: number, y: number, toX: number, toY: number) {
-      return this.desktopCommand(id, `xdotool mousemove ${x} ${y} mousedown 1 sleep 0.1 mousemove ${toX} ${toY} sleep 0.1 mouseup 1`);
+      return this.desktopCommand(id, `xdotool mousemove ${pixel("x", x)} ${pixel("y", y)} mousedown 1 sleep 0.1 mousemove ${pixel("toX", toX)} ${pixel("toY", toY)} sleep 0.1 mouseup 1`);
     },
     scroll(id: string, x: number, y: number, button: number, amount: number) {
-      return this.desktopCommand(id, `xdotool mousemove ${x} ${y} click --repeat ${amount} --delay 30 ${button}`);
+      if (!Number.isInteger(button) || button < 4 || button > 7) throw new InstaboxError("That scroll direction is not allowed.", 400, "bad_request");
+      if (!Number.isInteger(amount) || amount < 1 || amount > 30) throw new InstaboxError("That scroll amount is not allowed.", 400, "bad_request");
+      return this.desktopCommand(id, `xdotool mousemove ${pixel("x", x)} ${pixel("y", y)} click --repeat ${amount} --delay 30 ${button}`);
     },
     typeText(id: string, text: string) {
       return this.desktopCommand(id, "xdotool type --delay 12 --file -", text);
@@ -353,6 +388,10 @@ export function createInstaboxClient(options: InstaboxClientOptions) {
       return this.desktopCommand(id, `nohup xdg-open ${shellQuote(parsed.href)} >/dev/null 2>&1 </dev/null &`);
     },
     shell(id: string, command: string) {
+      if (typeof command !== "string" || command.length < 1 || command.length > 4000) {
+        throw new InstaboxError("That shell command is not allowed.", 400, "bad_request");
+      }
+      if (command.includes(apiKey)) throw new InstaboxError("That shell command is not allowed.", 400, "bad_request");
       return withLane(id, async () => {
         const machine = await getMachine(id);
         if (machine.state !== "running") {

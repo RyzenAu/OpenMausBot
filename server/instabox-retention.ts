@@ -23,7 +23,7 @@ export function instaboxRetentionProblems(files: { client?: string; updater?: st
   const problems: string[] = [];
   const client = files.client ?? "";
   if (!client.includes("export function instaboxRequestAllowed")) problems.push("the InstaBox client lost its request guard");
-  if (!client.includes('path === "/v1/machines"')) problems.push("the InstaBox client no longer refuses machine creation");
+  if (!client.includes('verb === "POST" && pathname === "/v1/machines"')) problems.push("the InstaBox client no longer refuses machine creation");
   if (/\bfunction create\(/.test(client) || client.includes('"/v1/machines", { method: "POST"')) {
     problems.push("the InstaBox client gained a create call");
   }

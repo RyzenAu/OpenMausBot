@@ -24,13 +24,16 @@ function machine(id: string, state = "running", name = "nomi") {
 
 describe("InstaBox request guard", () => {
   it("allows reads, exec, desktop, resume and start, and refuses create, delete, fork and resize", () => {
-    expect(instaboxRequestAllowed("GET", "/v1/machines")).toBe(true);
+    expect(instaboxRequestAllowed("GET", "/v1/machines?limit=100")).toBe(true);
     expect(instaboxRequestAllowed("GET", `/v1/machines/${MACHINE}`)).toBe(true);
     expect(instaboxRequestAllowed("POST", `/v1/machines/${MACHINE}/exec`)).toBe(true);
     expect(instaboxRequestAllowed("POST", `/v1/machines/${MACHINE}/desktop`)).toBe(true);
     expect(instaboxRequestAllowed("POST", `/v1/machines/${MACHINE}/resume`)).toBe(true);
     expect(instaboxRequestAllowed("POST", `/v1/machines/${MACHINE}/start`)).toBe(true);
     expect(instaboxRequestAllowed("POST", "/v1/machines")).toBe(false);
+    expect(instaboxRequestAllowed("POST", `/v1/machines/${MACHINE}/stop`)).toBe(false);
+    expect(instaboxRequestAllowed("POST", `/v1/machines/${MACHINE}/suspend`)).toBe(false);
+    expect(instaboxRequestAllowed("GET", "/v1/machines")).toBe(false);
     expect(instaboxRequestAllowed("DELETE", `/v1/machines/${MACHINE}`)).toBe(false);
     expect(instaboxRequestAllowed("PATCH", `/v1/machines/${MACHINE}`)).toBe(false);
     expect(instaboxRequestAllowed("PUT", `/v1/machines/${MACHINE}/files`)).toBe(false);
@@ -183,6 +186,17 @@ describe("InstaBox client", () => {
 
   it("refuses a base URL that is not the public API or a loopback test", () => {
     expect(() => createInstaboxClient({ apiKey: KEY, baseUrl: "https://evil.example/v1" })).toThrow(/public API/);
+  });
+
+  it("rejects a desktop command that is not one of the fixed templates before any request", async () => {
+    const client = createInstaboxClient({
+      apiKey: KEY,
+      baseUrl: "http://127.0.0.1:9",
+      fetch: () => { throw new Error("network"); },
+    });
+    await expect(client.desktopCommand(MACHINE, "xdotool mousemove 1;id")).rejects.toThrow(/not allowed/);
+    expect(() => client.click(MACHINE, Number.NaN, 1)).toThrow(/pixels/);
+    expect(() => client.shell(MACHINE, KEY)).toThrow(/not allowed/);
   });
 
   it("runs a click and an exec only against the assigned machine", async () => {

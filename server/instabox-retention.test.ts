@@ -23,7 +23,7 @@ describe("upstream sync retention", () => {
     const linuxPackage = readFileSync(new URL("../scripts/verify-linux-package.mjs", import.meta.url), "utf8");
     const windowsPackage = readFileSync(new URL("../.github/workflows/package-win.yml", import.meta.url), "utf8");
     expect(instaboxRetentionProblems({ client, updater, release, linuxPackage, windowsPackage })).toEqual([]);
-    expect(instaboxRetentionProblems({ client: client.replace('path === "/v1/machines"', "path === \"/gone\""), updater }).join(" ")).toMatch(/creation/);
+    expect(instaboxRetentionProblems({ client: client.replace('verb === "POST" && pathname === "/v1/machines"', "verb === \"POST\" && pathname === \"/gone\""), updater }).join(" ")).toMatch(/creation/);
     expect(instaboxRetentionProblems({ client, updater: updater.replace("owner: RyzenAu", "owner: milind-soni") }).join(" ")).toMatch(/updater feed/);
   });
 });

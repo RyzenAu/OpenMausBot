@@ -14,6 +14,7 @@ export interface InstaboxMachineRow {
   ready: boolean;
   assignedBotId: string | null;
   assignedBotName: string | null;
+  shared?: boolean;
 }
 
 export function InstaboxComputersCard({
@@ -78,7 +79,7 @@ export function InstaboxComputersCard({
                 </span>
               </div>
               <div className="mt-1 text-[12px] text-ink-secondary">
-                {machine.assignedBotName ? t("instabox.assigned", { name: machine.assignedBotName }) : t("instabox.unassigned")}
+                {machine.shared ? t("instabox.shared") : machine.assignedBotName ? t("instabox.assigned", { name: machine.assignedBotName }) : t("instabox.unassigned")}
               </div>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <label className="sr-only" htmlFor={`instabox-bot-${machine.id}`}>{t("instabox.chooseBot")}</label>

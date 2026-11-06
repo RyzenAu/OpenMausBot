@@ -55,26 +55,26 @@ jobs:
           fi
 
       - name: Already current
-        if: steps.merge.outputs.state == 'uptodate'
+        if: success() && steps.merge.outputs.state == 'uptodate'
         run: echo "Upstream main is already in this fork. Nothing to review."
 
       - name: Stop on a merge conflict
-        if: steps.merge.outputs.state == 'conflict'
+        if: success() && steps.merge.outputs.state == 'conflict'
         run: |
           echo "::error::Upstream merge conflict. main was not changed. Resolve the files in conflicts.txt on a local branch."
           cat conflicts.txt
           exit 1
 
       - uses: pnpm/action-setup@ff378ebe6b225b0680b81c1ad4498ae0d1d3a5e3 # v6.0.10
-        if: steps.merge.outputs.state == 'clean'
+        if: success() && steps.merge.outputs.state == 'clean'
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        if: steps.merge.outputs.state == 'clean'
+        if: success() && steps.merge.outputs.state == 'clean'
         with:
           node-version: 24
           cache: pnpm
 
       - name: Check the InstaBox guard survived the merge
-        if: steps.merge.outputs.state == 'clean'
+        if: success() && steps.merge.outputs.state == 'clean'
         run: |
           node --experimental-strip-types --input-type=module <<'EOF'
           import { readFileSync } from "node:fs";
@@ -96,20 +96,20 @@ jobs:
 
       - name: Install and test the InstaBox adapter
         id: tests
-        if: steps.merge.outputs.state == 'clean'
+        if: success() && steps.merge.outputs.state == 'clean'
         run: |
           pnpm install --frozen-lockfile
           pnpm exec vitest run server/instabox.test.ts server/instabox-retention.test.ts server/routes/instabox.test.ts src/components/InstaboxComputersCard.test.ts src/components/CloudBackendPicker.test.ts
 
       - name: Drop the merge if tests failed
-        if: failure()
+        if: failure() && steps.merge.outputs.state == 'clean'
         run: |
           git merge --abort || true
           echo "::error::Tests failed. The merge was not pushed and nothing was installed."
           exit 1
 
       - name: Commit and open a review pull request
-        if: steps.merge.outputs.state == 'clean'
+        if: success() && steps.merge.outputs.state == 'clean'
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ steps.merge.outputs.branch }}
@@ -119,7 +119,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -m "Merge upstream main, keeping the InstaBox adapter"
-          git push origin "$BRANCH"
+          git push --no-force origin "$BRANCH"
           gh pr create --base main --head "$BRANCH" --title "Review upstream sync (InstaBox retained)" --body "$(cat <<'EOF'
           ## Summary
           - Merges `milind-soni/OpenMausBot` `main` into this fork.
