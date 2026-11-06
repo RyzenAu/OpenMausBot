@@ -784,6 +784,7 @@
             "enum": [
               "xaiApiKey",
               "boxToken",
+              "instaboxApiKey",
               "opencodeGoApiKey",
               "ttsKey",
               "fishAudioKey",
