@@ -360,8 +360,8 @@ export function createBotPatchRoutes(deps: BotPatchRouteDeps): RouteHandler {
           patch.browserProfile = requestedProfile;
         } else return json(res, 400, { error: "browserProfile must name an existing browser profile" });
       }
-      if (body.cloudBackend !== undefined && !["box", "vps"].includes(String(body.cloudBackend))) {
-        return json(res, 400, { error: "cloudBackend must be box or vps" });
+      if (body.cloudBackend !== undefined && !["box", "vps", "instabox"].includes(String(body.cloudBackend))) {
+        return json(res, 400, { error: "cloudBackend must be box, vps, or instabox" });
       }
       if (body.autoStartVps !== undefined) {
         if (typeof body.autoStartVps !== "boolean") return json(res, 400, { error: "autoStartVps must be true or false" });

@@ -13,9 +13,15 @@ protocols:
 # --publish never, and must be uploaded to the GitHub release alongside the
 # artifacts — a release missing latest.yml leaves every Windows install
 # stranded on its installed version.
+#
+# This fork publishes to its own releases. An official OpenMausBot update
+# would replace the app and drop the InstaBox adapter. electron-updater
+# still verifies whatever signature the feed declares; this does not turn
+# signature checks off. Until a reviewed release exists here, the installed
+# app stays on its current build.
 publish:
   - provider: github
-    owner: milind-soni
+    owner: RyzenAu
     repo: OpenMausBot
 
 directories:

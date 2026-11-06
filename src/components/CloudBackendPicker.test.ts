@@ -11,7 +11,7 @@ vi.mock("@/state/store", async (importOriginal) => {
 });
 
 const { CloudBackendPicker } = await import("./CloudBackendPicker");
-const picker = (value: "box" | "vps" = "box") => renderToStaticMarkup(createElement(CloudBackendPicker, { value, onChange: () => {} }));
+const picker = (value: "box" | "vps" | "instabox" = "box") => renderToStaticMarkup(createElement(CloudBackendPicker, { value, onChange: () => {} }));
 
 describe("CloudBackendPicker", () => {
   afterEach(() => { fixture.config = null; });
@@ -26,10 +26,11 @@ describe("CloudBackendPicker", () => {
     expect(picker()).toBe("");
   });
 
-  it.each(["box", "vps"] as const)("offers both backends whichever is chosen (%s)", (value) => {
+  it.each(["box", "vps", "instabox"] as const)("offers every backend whichever is chosen (%s)", (value) => {
     const markup = picker(value);
     expect(markup).toContain("Boat");
     expect(markup).toContain("Self-hosted VPS");
+    expect(markup).toContain("InstaBox");
     expect(markup).not.toContain("disabled");
     expect(markup).not.toMatch(/ACP model provider/);
   });

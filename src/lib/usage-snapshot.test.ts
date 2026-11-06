@@ -46,7 +46,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 const DOCUMENTED = [
   "key_providers", "key_count", "has_boat_key", "cloud_computer_source", "cloud_computers", "team_computers", "bots_cloud_boat",
-  "bots_cloud_vps", "bots", "bots_local_vm", "bots_this_computer", "bots_browser", "bots_off", "bots_auto", "rooms", "bot_channels",
+  "bots_cloud_vps", "bots_cloud_instabox", "bots", "bots_local_vm", "bots_this_computer", "bots_browser", "bots_off", "bots_auto", "rooms", "bot_channels",
   "teams", "routines", "routines_enabled", "routines_cloud", "routines_room_goal", "routines_once", "routines_daily",
   "routines_interval", "routines_cron", "webhooks", "engines", "engine_count", "custom_endpoints", "trial_credit", "apps",
   "apps_connected", "connectors_mode", "local_vm_mode", "vps_configured", "voice", "voice_included", "decider", "decider_included",
@@ -197,7 +197,7 @@ describe("the daily usage snapshot", () => {
     expect(sent).toEqual({
       key_providers: ["anthropic", "openai_compat", "boat", "composio", "opencode_go", "fish_audio", "jev", "custom_image", "openai_live"],
       key_count: 9, has_boat_key: true, cloud_computer_source: "own_key", cloud_computers: 3, team_computers: 1,
-      bots_cloud_boat: 2, bots_cloud_vps: 1, bots: 9, bots_local_vm: 1, bots_this_computer: 1, bots_browser: 1, bots_off: 1, bots_auto: 2,
+      bots_cloud_boat: 2, bots_cloud_vps: 1, bots_cloud_instabox: 0, bots: 9, bots_local_vm: 1, bots_this_computer: 1, bots_browser: 1, bots_off: 1, bots_auto: 2,
       rooms: 2, bot_channels: 1, teams: 2,
       routines: 4, routines_enabled: 3, routines_cloud: 1, routines_room_goal: 1, routines_once: 1, routines_daily: 1, routines_interval: 1, routines_cron: 1,
       webhooks: 1, engines: ["claude", "openai_compat", "other"], engine_count: 4, custom_endpoints: 1, trial_credit: "used_up",

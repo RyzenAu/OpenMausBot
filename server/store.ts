@@ -372,8 +372,12 @@ export class Store {
           botsMigrated = true;
         }
       }
-      if (b.cloudBackend !== undefined && b.cloudBackend !== "box" && b.cloudBackend !== "vps") {
+      if (b.cloudBackend !== undefined && b.cloudBackend !== "box" && b.cloudBackend !== "vps" && b.cloudBackend !== "instabox") {
         delete b.cloudBackend;
+        botsMigrated = true;
+      }
+      if (b.instaboxMachineId !== undefined && !/^m_[a-z0-9]{26}$/.test(b.instaboxMachineId)) {
+        delete b.instaboxMachineId;
         botsMigrated = true;
       }
       if (b.autoStartVps !== undefined && b.autoStartVps !== true && b.autoStartVps !== false) {
